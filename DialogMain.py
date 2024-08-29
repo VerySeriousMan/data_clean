@@ -4,7 +4,7 @@ Project Name: data_clean
 File Created: 2024.07.22
 Author: ZhangYuetao
 File Name: DialogMain.py
-last renew: 2024.07.22
+last update： 2024.08.27
 """
 
 from PyQt5.QtWidgets import QDialog
@@ -48,7 +48,7 @@ class InputDialog(QDialog, Ui_Dialog):
             elif key == QtCore.Qt.Key_Alt:
                 key_text = 'Alt'
             elif key == QtCore.Qt.Key_Meta:
-                key_text = 'Windows'
+                key_text = 'Windows'  # 默认Windows操作系统
             elif 'A' <= key_text <= 'Z':
                 key_text = key_text.lower()
             if obj == self.short_key_lineEdit:
@@ -64,6 +64,13 @@ class InputDialog(QDialog, Ui_Dialog):
         self.submit()
         self.delete_input_line()
 
+    @staticmethod
+    def check_key_name(key_name, classes_data):
+        for key in classes_data.keys():
+            if classes_data[key]["input_keys"] == key_name:
+                return False
+        return True
+
     def submit(self):
         if not self.short_key_lineEdit.text():
             self.info_label.setText('未设置快捷键')
@@ -74,19 +81,22 @@ class InputDialog(QDialog, Ui_Dialog):
 
         try:
             classes_data = read_json(self.classify_button_json_path, {})
-            i = 1
-            while f"类别_{i}" in classes_data:
-                i += 1
-            self.name = f"类别_{i}"
-            classes_data[self.name] = {
-                "input_keys": self.short_key_lineEdit.text(),
-                "input_filename": self.filename_lineEdit.text()
-            }
-            write_json(self.classify_button_json_path, classes_data)
-            self.info_label.setText(f'{self.name} 保存成功')
+            if self.check_key_name(self.short_key_lineEdit.text(), classes_data):
+                i = 1
+                while f"类别_{i}" in classes_data:
+                    i += 1
+                self.name = f"类别_{i}"
+                classes_data[self.name] = {
+                    "input_keys": self.short_key_lineEdit.text(),
+                    "input_filename": self.filename_lineEdit.text()
+                }
+                write_json(self.classify_button_json_path, classes_data)
+                self.info_label.setText(f'{self.name} 保存成功')
 
-            if self.parent:
-                self.parent.load_classes()  # 调用父窗口的load_keys方法
+                if self.parent:
+                    self.parent.load_classes()  # 调用父窗口的load_keys方法
+            else:
+                self.info_label.setText('快捷键已存在')
         except Exception as e:
             self.info_label.setText(f"保存时出错: {str(e)}")
 

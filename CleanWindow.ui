@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>916</width>
-    <height>642</height>
+    <width>902</width>
+    <height>653</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -73,7 +73,23 @@
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="2,7">
       <item>
-       <layout class="QVBoxLayout" name="verticalLayout" stretch="10,1">
+       <layout class="QVBoxLayout" name="verticalLayout" stretch="7,93,10">
+        <item>
+         <widget class="QLabel" name="label_3">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>分类快捷键与保存文件夹列表</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
         <item>
          <widget class="QListWidget" name="classify_buttons_listWidget"/>
         </item>
@@ -113,12 +129,15 @@
        <layout class="QVBoxLayout" name="verticalLayout_4" stretch="10,1">
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="1,15">
+          <property name="spacing">
+           <number>0</number>
+          </property>
           <item>
-           <layout class="QVBoxLayout" name="verticalLayout_3" stretch="10,1">
+           <layout class="QVBoxLayout" name="verticalLayout_3" stretch="15,1">
             <item>
              <widget class="QSlider" name="image_size_verticalSlider">
               <property name="sizePolicy">
-               <sizepolicy hsizetype="Fixed" vsizetype="Expanding">
+               <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
                 <horstretch>0</horstretch>
                 <verstretch>0</verstretch>
                </sizepolicy>
@@ -131,7 +150,7 @@
             <item>
              <widget class="QLabel" name="label">
               <property name="sizePolicy">
-               <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+               <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
                 <horstretch>0</horstretch>
                 <verstretch>0</verstretch>
                </sizepolicy>
@@ -145,6 +164,12 @@
           </item>
           <item>
            <layout class="QVBoxLayout" name="verticalLayout_2" stretch="15,1">
+            <property name="spacing">
+             <number>6</number>
+            </property>
+            <property name="sizeConstraint">
+             <enum>QLayout::SetDefaultConstraint</enum>
+            </property>
             <item>
              <widget class="QLabel" name="image_label">
               <property name="sizePolicy">
@@ -170,7 +195,7 @@
             <item>
              <widget class="QSlider" name="image_size_horizontalSlider">
               <property name="sizePolicy">
-               <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
                 <horstretch>0</horstretch>
                 <verstretch>0</verstretch>
                </sizepolicy>
@@ -266,6 +291,9 @@
             <property name="text">
              <string> 剩余数量：</string>
             </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
            </widget>
           </item>
           <item>
@@ -300,7 +328,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>916</width>
+     <width>902</width>
      <height>23</height>
     </rect>
    </property>

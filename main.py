@@ -4,42 +4,47 @@ Project Name: data_clean
 File Created: 2023.09.14
 Author: ZhangYuetao
 File Name: main.py
-last renew 2024.07.25
+last update： 2024.08.29
 """
 
 import shutil
 import sys
 import os
 
+from PyQt5 import QtGui, QtCore
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QInputDialog, QToolTip
 from PyQt5.QtGui import QPixmap, QCursor
 from PyQt5.QtCore import QEvent
 import qt_material
-from CleanWindow import *
+
+from CleanWindow import Ui_MainWindow
 from DialogMain import InputDialog
 from utils import get_image_files, read_json, write_json
 
 
-class MyClass(QMainWindow, Ui_MainWindow):
+class MainWindow(QMainWindow, Ui_MainWindow):
+    MIN_PIC_SIZE = 100  # 图像最小值
+    AT_LEAST_MAX_PIC_SIZE = 500  # 图像至少的最大值
+
     def __init__(self, parent=None):
-        super(MyClass, self).__init__(parent)
+        super(MainWindow, self).__init__(parent)
 
         self.setupUi(self)
         self.setWindowIcon(QtGui.QIcon("xey.ico"))
         self.setWindowTitle("数据清洗软件V4.2")
 
-        self.index = 0
-        self.dir_path = ''
-        self.image_files = []
-        self.save_path = ''
-        self.redo_paths = []
-        self.pic_ve = 100
-        self.pic_ho = 100
-        self.classes = {}
-        self.classify_button_json_path = r'classify_button.json'  # json文件路径
-        self.current_classes = None
+        self.index = 0  # 当前显示的图片索引
+        self.dir_path = ''  # 图片文件夹路径
+        self.image_files = []  # 图片文件列表
+        self.save_path = ''  # 保存图片的路径
+        self.redo_paths = []  # 撤销操作的路径栈
+        self.pic_ve = MainWindow.MIN_PIC_SIZE  # 图片显示的垂直尺寸
+        self.pic_ho = MainWindow.MIN_PIC_SIZE  # 图片显示的水平尺寸
+        self.classes = {}  # 分类按钮与文件名的映射
+        self.classify_button_json_path = r'classify_button.json'  # json文件路径，用于保存分类按钮信息
+        self.current_classes = None  # 当前选中的分类
 
-        self.insert_button_window = None
+        self.insert_button_window = None  # 插入按钮窗口
         self.is_insert_button_window_open = False  # 标志 InputDialog 是否已打开
 
         self.open_pushButton.clicked.connect(self.open_files)
@@ -50,23 +55,23 @@ class MyClass(QMainWindow, Ui_MainWindow):
         self.insert_pushButton.clicked.connect(self.open_insert_button_dialog)
         self.delete_pushButton.clicked.connect(self.delete_classes)
 
-        # 添加listWidget双击事件
+        # 添加listWidget双击事件，用于重命名分类
         self.classify_buttons_listWidget.itemDoubleClicked.connect(self.rename_class)
-        # 安装事件过滤器
+        # 安装事件过滤器，用于显示工具提示
         self.classify_buttons_listWidget.viewport().installEventFilter(self)
 
         self.control_enabled(False)
         self.save_pushButton.setEnabled(False)
         self.info_label.setText('请导入需要清洗的文件夹')
-        self.setup_sliders()
-        self.load_classes()
+        self.setup_sliders()  # 初始化滑块
+        self.load_classes()  # 加载分类信息
 
     def setup_sliders(self):
         """初始化滑块设置"""
-        self.image_size_verticalSlider.setMaximum(max(self.image_label.height(), 500))
-        self.image_size_verticalSlider.setMinimum(100)
-        self.image_size_horizontalSlider.setMaximum(max(self.image_label.width(), 500))
-        self.image_size_horizontalSlider.setMinimum(100)
+        self.image_size_verticalSlider.setMaximum(max(self.image_label.height(), MainWindow.AT_LEAST_MAX_PIC_SIZE))
+        self.image_size_verticalSlider.setMinimum(MainWindow.MIN_PIC_SIZE)
+        self.image_size_horizontalSlider.setMaximum(max(self.image_label.width(), MainWindow.AT_LEAST_MAX_PIC_SIZE))
+        self.image_size_horizontalSlider.setMinimum(MainWindow.MIN_PIC_SIZE)
         self.image_size_verticalSlider.sliderMoved.connect(lambda: self.change_slider_max_value('vertical'))
         self.image_size_horizontalSlider.sliderMoved.connect(lambda: self.change_slider_max_value('horizontal'))
 
@@ -82,19 +87,25 @@ class MyClass(QMainWindow, Ui_MainWindow):
         self.next_pushButton.setEnabled(enabled)
 
     def open_files(self):
-        dir_path = QFileDialog.getExistingDirectory(self)
-        if dir_path:
-            self.dir_path = dir_path
-            self.image_files = get_image_files(dir_path)
-            if self.image_files:
-                self.save_pushButton.setEnabled(True)
-                self.info_label.setText('已导入文件夹，请设置保存地址')
-                self.index = 0
-                self.show_image()
-            else:
-                self.info_label.setText('文件夹中不存在图片，请重新导入新的文件夹')
+        """打开文件夹对话框以选择图像文件夹，并加载图像文件"""
+        try:
+            dir_path = QFileDialog.getExistingDirectory(self)
+            if dir_path:
+                self.dir_path = dir_path
+                self.image_files = get_image_files(dir_path)
+                if self.image_files:
+                    self.save_pushButton.setEnabled(True)
+                    self.info_label.setText('已导入文件夹，请设置保存地址')
+                    self.index = 0
+                    self.get_max_fit_size()
+                    self.show_image()  # 显示第一张图片
+                else:
+                    self.info_label.setText('文件夹中不存在图片，请重新导入新的文件夹')
+        except Exception as e:
+            self.info_label.setText(f"打开文件时出错: {e}")
 
     def get_save_path(self):
+        """打开文件夹对话框以选择保存路径，并启用相关控件"""
         save_path = QFileDialog.getExistingDirectory(self)
         if save_path:
             self.save_path = save_path
@@ -104,12 +115,14 @@ class MyClass(QMainWindow, Ui_MainWindow):
     def show_prev_image(self):
         if self.index > 0:
             self.index -= 1
+            self.get_max_fit_size()
             self.show_image()
             self.info_label.clear()
 
     def show_next_image(self):
         if self.index < len(self.image_files) - 1:
             self.index += 1
+            self.get_max_fit_size()
             self.show_image()
             self.info_label.clear()
 
@@ -117,11 +130,27 @@ class MyClass(QMainWindow, Ui_MainWindow):
         image_path = self.image_files[self.index]
         pixmap = QPixmap(image_path)
         if pixmap.isNull():
-            self.info_label.setText(f"Failed to load image: {image_path}")
+            self.info_label.setText(f"图像{image_path}加载错误")
         else:
             scaled_pixmap = pixmap.scaled(self.pic_ho, self.pic_ve)
             self.image_label.setPixmap(scaled_pixmap)
             self.show_current_nums()
+
+    def get_max_fit_size(self):
+        """获取当前图片的最大适应尺寸"""
+        image_path = self.image_files[self.index]
+        pixmap = QPixmap(image_path)
+        if pixmap.isNull():
+            self.info_label.setText(f"图像{image_path}打开错误")
+        else:
+            # 根据图像尺寸计算比例因子
+            width, height = pixmap.width(), pixmap.height()
+            height_value = self.image_label.height() / height
+            width_value = self.image_label.width() / width
+            scale_factor = min(height_value, width_value)
+
+            self.pic_ho = int(width * scale_factor)
+            self.pic_ve = int(height * scale_factor)
 
     def show_current_nums(self):
         current_nums = len(self.image_files) - self.index
@@ -167,12 +196,13 @@ class MyClass(QMainWindow, Ui_MainWindow):
             self.info_label.setText(f'已撤回{image_dir_path}')
 
     def change_slider_max_value(self, slider_type):
+        """根据滑块类型更新滑块的最大值并显示图片"""
         if self.nums_label.text():
             if slider_type == 'vertical':
-                self.image_size_verticalSlider.setMaximum(max(self.image_label.height(), 500))
+                self.image_size_verticalSlider.setMaximum(max(self.image_label.height(), MainWindow.AT_LEAST_MAX_PIC_SIZE))
                 self.pic_ve = self.image_size_verticalSlider.value()
             elif slider_type == 'horizontal':
-                self.image_size_horizontalSlider.setMaximum(max(self.image_label.width(), 500))
+                self.image_size_horizontalSlider.setMaximum(max(self.image_label.width(), MainWindow.AT_LEAST_MAX_PIC_SIZE))
                 self.pic_ho = self.image_size_horizontalSlider.value()
             self.show_image()
 
@@ -205,7 +235,7 @@ class MyClass(QMainWindow, Ui_MainWindow):
         write_json(self.classify_button_json_path, self.classes)
 
     def rename_class(self, item):
-        """重命名选中项"""
+        """双击重命名选中项"""
         class_name = item.text()
         if class_name in self.classes:
             new_name, ok = QInputDialog.getText(self, "重命名类别", "新类别名:", text=class_name)
@@ -215,6 +245,7 @@ class MyClass(QMainWindow, Ui_MainWindow):
                 self.load_classes()
 
     def eventFilter(self, source, event):
+        """事件过滤器，用于显示工具提示"""
         if event.type() == QEvent.ToolTip and source is self.classify_buttons_listWidget.viewport():
             item = self.classify_buttons_listWidget.itemAt(event.pos())
             if item:
@@ -223,7 +254,7 @@ class MyClass(QMainWindow, Ui_MainWindow):
                     class_info = self.classes[class_name]
                     QToolTip.showText(QCursor.pos(), f"类别: {class_name}\n信息: {class_info}")
             return True
-        return super(MyClass, self).eventFilter(source, event)
+        return super(MainWindow, self).eventFilter(source, event)
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_A:
@@ -243,8 +274,10 @@ class MyClass(QMainWindow, Ui_MainWindow):
 
 
 if __name__ == "__main__":
+    QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling)  # 自动适配不同分辨率的显示器
+    QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps)  # 确保图片也进行高DPI缩放
     app = QApplication(sys.argv)
-    qt_material.apply_stylesheet(app, theme='dark_blue.xml')
-    win = MyClass()
-    win.show()
+    myWin = MainWindow()
+    qt_material.apply_stylesheet(app, theme='default')
+    myWin.show()
     sys.exit(app.exec_())

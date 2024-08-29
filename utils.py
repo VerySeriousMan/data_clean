@@ -4,7 +4,7 @@ Project Name: data_clean
 File Created: 2024.07.22
 Author: ZhangYuetao
 File Name: utils.py
-last renew 2024.07.22
+last update： 2024.08.27
 """
 
 import os
@@ -34,3 +34,10 @@ def read_json(file_path, default_value):
 def write_json(file_path, data):
     with open(file_path, 'w', encoding='utf-8') as file:
         json.dump(data, file, ensure_ascii=False, indent=4)
+
+
+def check_key_name(key_name, classes_data):
+    for key in classes_data.keys():
+        if classes_data[key]["input_keys"] == key_name:
+            return False
+    return True
