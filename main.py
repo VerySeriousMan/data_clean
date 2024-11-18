@@ -252,7 +252,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if not os.path.isdir(need_path):
                 os.mkdir(need_path)
 
-            last_path = os.path.join(need_path, image_path.split('/')[-1])
+            last_path = os.path.join(need_path, os.path.basename(image_path))
             image_dir_path = os.path.dirname(image_path)
 
             if os.path.exists(last_path):
