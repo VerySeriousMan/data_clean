@@ -4,15 +4,17 @@ Project Name: data_clean
 File Created: 2023.09.14
 Author: ZhangYuetao
 File Name: main.py
-last update： 2024.08.29
+last update： 2024.11.18
 """
 
+import os.path
 import shutil
+import subprocess
 import sys
-import os
+import time
 
 from PyQt5 import QtGui, QtCore
-from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QInputDialog, QToolTip
+from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QInputDialog, QToolTip, QMessageBox
 from PyQt5.QtGui import QPixmap, QCursor
 from PyQt5.QtCore import QEvent
 import qt_material
@@ -20,6 +22,7 @@ import qt_material
 from CleanWindow import Ui_MainWindow
 from DialogMain import InputDialog
 from utils import get_image_files, read_json, write_json
+import server_connect
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -31,7 +34,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.setupUi(self)
         self.setWindowIcon(QtGui.QIcon("xey.ico"))
-        self.setWindowTitle("数据清洗软件V4.2")
+        self.setWindowTitle("数据清洗软件V4.3")
 
         self.index = 0  # 当前显示的图片索引
         self.dir_path = ''  # 图片文件夹路径
@@ -41,8 +44,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.pic_ve = MainWindow.MIN_PIC_SIZE  # 图片显示的垂直尺寸
         self.pic_ho = MainWindow.MIN_PIC_SIZE  # 图片显示的水平尺寸
         self.classes = {}  # 分类按钮与文件名的映射
-        self.classify_button_json_path = r'classify_button.json'  # json文件路径，用于保存分类按钮信息
+        self.classify_button_json_path = r'settings/classify_button.json'  # json文件路径，用于保存分类按钮信息
         self.current_classes = None  # 当前选中的分类
+        self.current_software_path = self.get_file_path()
+        self.current_software_version = server_connect.get_current_software_version(self.current_software_path)
 
         self.insert_button_window = None  # 插入按钮窗口
         self.is_insert_button_window_open = False  # 标志 InputDialog 是否已打开
@@ -54,6 +59,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.save_pushButton.clicked.connect(self.get_save_path)
         self.insert_pushButton.clicked.connect(self.open_insert_button_dialog)
         self.delete_pushButton.clicked.connect(self.delete_classes)
+        self.software_update_action.triggered.connect(self.update_software)
 
         # 添加listWidget双击事件，用于重命名分类
         self.classify_buttons_listWidget.itemDoubleClicked.connect(self.rename_class)
@@ -65,6 +71,87 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.info_label.setText('请导入需要清洗的文件夹')
         self.setup_sliders()  # 初始化滑块
         self.load_classes()  # 加载分类信息
+        self.auto_update()
+        self.init_update()
+
+    def init_update(self):
+        dir_path = os.path.dirname(self.current_software_path)
+        dir_name = os.path.basename(dir_path)
+        if dir_name == 'temp':
+            old_dir_path = os.path.dirname(dir_path)
+            for file in os.listdir(old_dir_path):
+                if file.endswith('.exe'):
+                    old_software = os.path.join(old_dir_path, file)
+                    os.remove(old_software)
+            shutil.copy2(self.current_software_path, old_dir_path)
+            new_file_path = os.path.join(old_dir_path, os.path.basename(self.current_software_path))
+            if os.path.exists(new_file_path) and server_connect.is_file_complete(new_file_path):
+                msg_box = QMessageBox(self)  # 创建一个新的 QMessageBox 对象
+                reply = msg_box.question(self, '更新完成', '软件更新完成，需要立即重启吗？',
+                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                msg_box.raise_()  # 确保弹窗显示在最上层
+
+                if reply == QMessageBox.Yes:
+                    subprocess.Popen(new_file_path)
+                    time.sleep(1)
+                    sys.exit("程序已退出")
+                else:
+                    sys.exit("程序已退出")
+        else:
+            is_updated = 0
+            for file in os.listdir(dir_path):
+                if file == 'temp':
+                    is_updated = 1
+                    shutil.rmtree(file)
+            if is_updated == 1:
+                try:
+                    text = server_connect.get_update_log('数据清洗软件')
+                    QMessageBox.information(self, '更新成功', f'更新成功！\n{text}')
+                except Exception as e:
+                    QMessageBox.critical(self, '更新成功', f'日志加载失败: {str(e)}')
+
+    @staticmethod
+    def get_file_path():
+        # 检查是否是打包后的程序
+        if getattr(sys, 'frozen', False):
+            # PyInstaller 打包后的路径
+            current_path = os.path.abspath(sys.argv[0])
+        else:
+            # 非打包情况下的路径
+            current_path = os.path.abspath(__file__)
+        return current_path
+
+    def auto_update(self):
+        dir_path = os.path.dirname(self.current_software_path)
+        dir_name = os.path.basename(dir_path)
+        if dir_name != 'temp':
+            if server_connect.check_version(self.current_software_version) == 1:
+                self.update_software()
+
+    def update_software(self):
+        update_way = server_connect.check_version(self.current_software_version)
+        if update_way == -1:
+            # 网络未连接，弹出提示框
+            QMessageBox.warning(self, '更新提示', '网络未连接，暂时无法更新')
+        elif update_way == 0:
+            # 当前已为最新版本，弹出提示框
+            QMessageBox.information(self, '更新提示', '当前已为最新版本')
+        else:
+            # 弹出提示框，询问是否立即更新
+            msg_box = QMessageBox(self)  # 创建一个新的 QMessageBox 对象
+            reply = msg_box.question(self, '更新提示', '发现新版本，开始更新吗？',
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            msg_box.raise_()  # 确保弹窗显示在最上层
+
+            if reply == QMessageBox.Yes:
+                try:
+                    server_connect.update_software(os.path.dirname(self.current_software_path), '数据清洗软件')
+                    text = server_connect.get_update_log('数据清洗软件')
+                    QMessageBox.information(self, '更新成功', f'更新成功！\n{text}')
+                except Exception as e:
+                    QMessageBox.critical(self, '更新失败', f'更新失败: {str(e)}')
+            else:
+                pass
 
     def setup_sliders(self):
         """初始化滑块设置"""

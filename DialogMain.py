@@ -22,7 +22,7 @@ class InputDialog(QDialog, Ui_Dialog):
         self.setWindowIcon(QtGui.QIcon("xey.ico"))
 
         self.name = None
-        self.classify_button_json_path = r'classify_button.json'  # json文件路径
+        self.classify_button_json_path = r'settings/classify_button.json'  # json文件路径
 
         self.buttonBox.accepted.connect(self.return_accept)
         self.buttonBox.rejected.connect(self.reject)
